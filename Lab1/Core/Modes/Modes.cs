@@ -16,7 +16,7 @@ public abstract class CipherModeBase : ICipherModeProcessor
 
     protected CipherModeBase(byte[]? iv, params object[] extra)
     {
-        _iv = iv;
+        _iv = iv == null ? null : (byte[])iv.Clone();
         _extra = extra ?? Array.Empty<object>();
     }
 
@@ -52,7 +52,29 @@ public abstract class CipherModeBase : ICipherModeProcessor
 
     protected byte[] GetIvOrThrow()
     {
-        if (_iv == null) throw new InvalidCastException("IV is required for this mode");
-        return _iv;
+        if (_iv == null) throw new ArgumentException("An initialization vector is required for this mode.");
+        return (byte[])_iv.Clone();
+    }
+
+    protected byte[] GetValidatedIv(int blockSize)
+    {
+        byte[] iv = GetIvOrThrow();
+        if (iv.Length != blockSize)
+            throw new ArgumentException($"The initialization vector must be {blockSize} bytes long.");
+        return iv;
+    }
+
+    protected static void ValidateInput(byte[] data, ISymmetricAlgorithm algorithm)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(algorithm);
+        if (algorithm.BlockSize <= 0)
+            throw new ArgumentException("The algorithm block size must be positive.", nameof(algorithm));
+    }
+
+    protected static void ValidateBlockAligned(byte[] data, int blockSize)
+    {
+        if (data.Length % blockSize != 0)
+            throw new ArgumentException("Data length must be a multiple of the algorithm block size.", nameof(data));
     }
 }

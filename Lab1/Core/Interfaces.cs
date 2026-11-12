@@ -2,10 +2,10 @@ namespace Lab1.Interfaces;
 
 public interface IKeyExpander
 {
-    byte[][] Expandkey(byte[] key);
+    byte[][] ExpandKey(byte[] key);
 }
 
-public interface IRoundtransform
+public interface IRoundTransform
 {
     byte[] Transform(byte[] blockPart, byte[] roundKey);
 }

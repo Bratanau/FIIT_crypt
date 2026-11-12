@@ -1,18 +1,17 @@
 using System;
+
 namespace Lab1.BitUtils
 {
     public static class BitPermutation
     {
-        public static byte[] Permute(
-            byte[] input,
-            int[] pBlock,
-            BitOrder order,
-            int firstBitIndex
-        )
+        public static byte[] Permute(byte[] input, int[] pBlock, BitOrder order, int firstBitIndex)
         {
-            if (input == null) throw new ArgumentNullException(nameof(input));
-            if (pBlock == null) throw new ArgumentNullException(nameof(pBlock));
-            if (firstBitIndex != 0 && firstBitIndex != 1) throw new ArgumentException("0/1");
+            ArgumentNullException.ThrowIfNull(input);
+            ArgumentNullException.ThrowIfNull(pBlock);
+            if (firstBitIndex != 0 && firstBitIndex != 1)
+                throw new ArgumentOutOfRangeException(nameof(firstBitIndex), "The first bit index must be 0 or 1.");
+            if (pBlock.Length == 0)
+                return Array.Empty<byte>();
 
             int outBits = pBlock.Length;
             byte[] output = new byte[(outBits + 7) / 8];
@@ -28,35 +27,42 @@ namespace Lab1.BitUtils
 
         public static bool GetBit(byte[] data, int bitIndex, BitOrder order)
         {
-            if (bitIndex < 0 || bitIndex >= data.Length * 8)
-                throw new ArgumentOutOfRangeException(nameof(bitIndex));
+            Validate(data, bitIndex, order);
 
             int byteIndex = bitIndex / 8;
             int bitInByte = bitIndex % 8;
 
             if (order == BitOrder.LsbFirst) 
                 return ((data[byteIndex] >> bitInByte) & 1) != 0;
-            else
-                return ((data[byteIndex] >> (7 - bitInByte)) & 1) != 0;
-
+            return ((data[byteIndex] >> (7 - bitInByte)) & 1) != 0;
         }
 
-        public static bool SetBit(byte[] data, int bitIndex, bool value, BitOrder order)
+        public static void SetBit(byte[] data, int bitIndex, bool value, BitOrder order)
         {
-            if (bitIndex < 0 || bitIndex >= data.Length * 8)
-                throw new ArgumentOutOfRangeException(nameof(bitIndex));
+            Validate(data, bitIndex, order);
 
             int byteIndex = bitIndex / 8;
             int bitInByte = bitIndex % 8;
 
             int mask = (order == BitOrder.LsbFirst)
                 ? 1 << bitInByte
-                : 1 << (7 - bitinByte);
+                : 1 << (7 - bitInByte);
 
             if (value)
-                data[byteIndex] = data[buteIndex] | (byte)mask;
+                data[byteIndex] = (byte)(data[byteIndex] | mask);
             else
-                data[byteIndex] = data[byteIndex] & (byte)~mask;
+                data[byteIndex] = (byte)(data[byteIndex] & ~mask);
+        }
+
+        private static void Validate(byte[] data, int bitIndex, BitOrder order)
+        {
+            ArgumentNullException.ThrowIfNull(data);
+
+            if (order != BitOrder.LsbFirst && order != BitOrder.MsbFirst)
+                throw new ArgumentOutOfRangeException(nameof(order));
+
+            if (bitIndex < 0 || bitIndex >= data.Length * 8)
+                throw new ArgumentOutOfRangeException(nameof(bitIndex));
         }
     }
 }
