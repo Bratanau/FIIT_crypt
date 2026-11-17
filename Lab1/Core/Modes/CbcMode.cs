@@ -28,8 +28,10 @@ public sealed class CbcMode : CipherModeBase
         {
             byte[] block = TakeBlock(data, offset, algorithm.BlockSize);
             byte[] transformed = encrypt ? algorithm.EncryptBlock(Xor(block, chain)) : Xor(algorithm.DecryptBlock(block), chain);
+
             if (transformed.Length != algorithm.BlockSize)
                 throw new InvalidOperationException("The algorithm returned a block of an unexpected size.");
+                
             Array.Copy(transformed, 0, result, offset, transformed.Length);
             chain = encrypt ? transformed : block;
         }

@@ -45,8 +45,7 @@ public abstract class CipherModeBase : ICipherModeProcessor
     {
         for (int i = counter.Length - 1; i >= 0; i--)
         {
-            if (++counter[i] != 0)
-                break;
+            if (++counter[i] != 0) break;
         }
     }
 

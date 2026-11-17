@@ -32,7 +32,7 @@ public sealed class DesRoundFunction : IRoundTransform
         return BitPermutation.Permute(substituted, DesTables.P, BitOrder.MsbFirst, 1);
     }
 
-    public static void Validate(byte[] blockPart, byte[] roundKey) // used in DesAsDealRoundFunction
+    private void Validate(byte[] blockPart, byte[] roundKey) 
     {
         ArgumentNullException.ThrowIfNull(blockPart);
         ArgumentNullException.ThrowIfNull(roundKey);

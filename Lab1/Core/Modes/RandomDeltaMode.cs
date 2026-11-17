@@ -1,92 +1,106 @@
 using System;
-using System.Security.Cryptography;
 using Lab1.Interfaces;
 
 namespace Lab1.Core.Modes;
 
 public sealed class RandomDeltaMode : CipherModeBase
 {
-    private readonly byte[]? _configuredDelta;
+    private static readonly Random _rng = new Random();
 
-    public RandomDeltaMode(byte[]? iv, params object[] extra) : base(iv, extra)
-    {
-        extra ??= Array.Empty<object>();
-        if (extra.Length > 1 || (extra.Length == 1 && extra[0] is not byte[]))
-            throw new ArgumentException("Random Delta accepts at most one byte[] delta parameter.", nameof(extra));
-        _configuredDelta = extra.Length == 1 ? (byte[])((byte[])extra[0]).Clone() : null;
-    }
+    public RandomDeltaMode(byte[]? iv) : base(iv) { }
 
     public override byte[] Encrypt(byte[] data, ISymmetricAlgorithm algorithm)
     {
-        ValidateInput(data, algorithm);
-        byte[] counter = GetValidatedIv(algorithm.BlockSize);
-        byte[] delta;
-        if (_configuredDelta == null)
-        {
-            delta = RandomNumberGenerator.GetBytes(algorithm.BlockSize);
-            delta[^1] |= 1;
-        }
-        else
-        {
-            delta = (byte[])_configuredDelta.Clone();
-        }
-        ValidateDelta(delta, algorithm.BlockSize);
-
-        byte[] result = new byte[algorithm.BlockSize + data.Length];
-        Array.Copy(delta, result, delta.Length);
-        for (int offset = 0; offset < data.Length; offset += algorithm.BlockSize)
-        {
-            byte[] stream = algorithm.EncryptBlock(counter);
-            int count = Math.Min(algorithm.BlockSize, data.Length - offset);
-            for (int i = 0; i < count; i++)
-                result[algorithm.BlockSize + offset + i] = (byte)(data[offset + i] ^ stream[i]);
-            AddDelta(counter, delta);
-        }
-        return result;
+        return Transform(data, algorithm, encrypt: true);
     }
 
     public override byte[] Decrypt(byte[] data, ISymmetricAlgorithm algorithm)
     {
-        ValidateInput(data, algorithm);
-        if (data.Length < algorithm.BlockSize)
-            throw new ArgumentException("Random Delta ciphertext is missing its delta header.", nameof(data));
-        byte[] counter = GetValidatedIv(algorithm.BlockSize);
-        byte[] delta = new byte[algorithm.BlockSize];
-        Array.Copy(data, delta, delta.Length);
-        ValidateDelta(delta, algorithm.BlockSize);
-        int payloadLength = data.Length - algorithm.BlockSize;
-        byte[] result = new byte[payloadLength];
-        for (int offset = 0; offset < payloadLength; offset += algorithm.BlockSize)
-        {
-            byte[] stream = algorithm.EncryptBlock(counter);
-            int count = Math.Min(algorithm.BlockSize, payloadLength - offset);
-            for (int i = 0; i < count; i++)
-                result[offset + i] = (byte)(data[algorithm.BlockSize + offset + i] ^ stream[i]);
-            AddDelta(counter, delta);
-        }
-        return result;
+        return Transform(data, algorithm, encrypt: false);
     }
 
-    private static void ValidateDelta(byte[] delta, int blockSize)
+    private byte[] Transform(byte[] data, ISymmetricAlgorithm algorithm, bool encrypt)
+{
+    ValidateInput(data, algorithm);
+    
+    byte[] counter = GetValidatedIv(algorithm.BlockSize);
+    byte[] result;
+    int _delta;
+
+    if (encrypt)
     {
-        if (delta.Length != blockSize)
-            throw new ArgumentException($"The Random Delta value must be {blockSize} bytes long.");
+        _delta = RandomPrime(100);
+        result = new byte[data.Length + 4];
+        Array.Copy(BitConverter.GetBytes(_delta), result, 4); 
+    }
+    else
+    {
+        if (data.Length < 4)
+            throw new InvalidOperationException("The data is too short to contain a delta value.");
+
+        _delta = BitConverter.ToInt32(data, 0);
+        result = new byte[data.Length - 4];
+    }
+
+    int dataOffset = encrypt ? 0 : 4;      
+    int resOffset = encrypt ? 4 : 0; 
+    int dataLen = encrypt ? data.Length : data.Length - 4;
+
+    for (int offset = 0; offset < dataLen; offset += algorithm.BlockSize)
+    {
+        byte[] stream = algorithm.EncryptBlock(counter);
+        int count = Math.Min(algorithm.BlockSize, dataLen - offset);
         
-        bool nonzero = false;
-        foreach (byte value in delta)
-            nonzero |= value != 0;
-        if (!nonzero || (delta[^1] & 1) == 0)
-            throw new ArgumentException("The Random Delta value must be nonzero and odd.");
+        for (int i = 0; i < count; i++)
+        {
+            result[resOffset + offset + i] = (byte)(data[dataOffset + offset + i] ^ stream[i]);
+        }
+        AddIntToCounter(counter, _delta);
     }
+    return result;
+}
 
-    private static void AddDelta(byte[] counter, byte[] delta)
+    private void AddIntToCounter(byte[] counter, int delta)
     {
-        int carry = 0;
+        long counterValue = 0;
+        for (int i = 0; i < counter.Length; i++)
+        {
+            counterValue = (counterValue << 8) + counter[i];
+        }
+
+        counterValue += delta;
+
         for (int i = counter.Length - 1; i >= 0; i--)
         {
-            int sum = counter[i] + delta[i] + carry;
-            counter[i] = (byte)sum;
-            carry = sum >> 8;
+            counter[i] = (byte)(counterValue & 0xFF);
+            counterValue >>= 8;
         }
+    }
+
+    private int RandomPrime(int max)
+    {
+        if (max < 2)
+            throw new ArgumentException("Maximum value must be greater than 2");
+        if (max == 2)
+            return 2;
+        while (true)
+        {
+            int candidate = _rng.Next(2, max);
+            if (IsPrime(candidate))
+                return candidate;
+        }
+    }
+
+    private bool IsPrime(int n)
+    {
+        if (n < 2) return false;
+        if (n == 2) return true;
+        if (n % 2 == 0) return false;
+
+        for (int i = 3; i * i <= n; i += 2)
+        {
+            if (n % i == 0) return false;
+        }
+        return true;
     }
 }

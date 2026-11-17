@@ -5,12 +5,8 @@ namespace Lab1.Core.Modes
 {
     public class CipherModeFactory
     {
-        public static ICipherModeProcessor Create(
-            CipherMode mode,
-            byte[]? iv,
-            object[] extra)
+        public static ICipherModeProcessor Create(CipherMode mode, byte[]? iv)
         {
-            extra ??= Array.Empty<object>();
             return mode switch
             {
                 CipherMode.ECB => new EcbMode(),
@@ -19,7 +15,7 @@ namespace Lab1.Core.Modes
                 CipherMode.OFB => new OfbMode(RequireIv(iv, mode)),
                 CipherMode.CTR => new CtrMode(RequireIv(iv, mode)),
                 CipherMode.PCBC => new PcbcMode(RequireIv(iv, mode)),
-                CipherMode.RandomDelta => new RandomDeltaMode(RequireIv(iv, mode), extra),
+                CipherMode.RandomDelta => new RandomDeltaMode(RequireIv(iv, mode)),
                 _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null)
             };
         }

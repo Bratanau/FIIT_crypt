@@ -29,8 +29,10 @@ public sealed class EcbMode : CipherModeBase
             byte[] block = new byte[algorithm.BlockSize];
             Array.Copy(data, offset, block, 0, block.Length);
             byte[] transformed = encrypt ? algorithm.EncryptBlock(block) : algorithm.DecryptBlock(block);
+
             if (transformed.Length != block.Length)
                 throw new InvalidOperationException("The algorithm returned a block of an unexpected size.");
+                
             Array.Copy(transformed, 0, result, offset, transformed.Length);
         }
         return result;

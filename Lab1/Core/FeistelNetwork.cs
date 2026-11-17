@@ -38,6 +38,7 @@ public sealed class FeistelNetwork
         {
             byte[] roundKey = roundKeys[reverseKeys ? roundKeys.Length - 1 - round : round];
             byte[] transformed = _roundTransform.Transform(right, roundKey);
+            
             if (transformed == null || transformed.Length != halfSize)
                 throw new InvalidOperationException("The round transform must return exactly half a block.");
 
